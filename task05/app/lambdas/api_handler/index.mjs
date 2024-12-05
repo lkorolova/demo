@@ -15,9 +15,7 @@ const ourRequest = async (event) => {
       try {
         const id = uuid();
         const date = new Date(Date.now()).toISOString();
-        const { principalId, content} = event;
-        console.log(typeof principalId);
-        
+        const { principalId, content} = event;        
         
         if(typeof +principalId === "number") {
           const command = new PutCommand({
