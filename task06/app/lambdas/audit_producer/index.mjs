@@ -50,7 +50,7 @@ const logDynamoDBRecord = async (record) => {
                 } ,
             });
         } else if (record.eventName === "MODIFY") {
-            const oldValue = record.dynamodb.OldImage.value.S;
+            const oldValue = +record.dynamodb.OldImage.value.N;
 
             command = new PutCommand({
                 TableName: tableName,
