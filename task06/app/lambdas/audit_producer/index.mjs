@@ -31,8 +31,8 @@ const logDynamoDBRecord = async (record) => {
         const id = uuid();
         const modificationTime = new Date(record.dynamodb.ApproximateCreationDateTime * MILISECS_IN_SEC);
         const modificationTimeStr = modificationTime.toISOString();
-        const key = JSON.stringify(record.dynamodb.NewImage.key.S);
-        const newValue = JSON.stringify(record.dynamodb.NewImage.value.N);
+        const key = record.dynamodb.NewImage.key.S;
+        const newValue = record.dynamodb.NewImage.value.N;
         
         let command;
         if(record.eventName === "INSERT") {
@@ -50,7 +50,7 @@ const logDynamoDBRecord = async (record) => {
                 } ,
             });
         } else if (record.eventName === "MODIFY") {
-            const oldValue = JSON.stringify(record.dynamodb.OldImage.value.S);
+            const oldValue = record.dynamodb.OldImage.value.S;
 
             command = new PutCommand({
                 TableName: tableName,
