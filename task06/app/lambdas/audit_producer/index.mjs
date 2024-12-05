@@ -32,7 +32,7 @@ const logDynamoDBRecord = async (record) => {
         const modificationTime = new Date(record.dynamodb.ApproximateCreationDateTime * MILISECS_IN_SEC);
         const modificationTimeStr = modificationTime.toISOString();
         const key = record.dynamodb.NewImage.key.S;
-        const newValue = record.dynamodb.NewImage.value.N;
+        const newValue = +record.dynamodb.NewImage.value.N;
         
         let command;
         if(record.eventName === "INSERT") {
