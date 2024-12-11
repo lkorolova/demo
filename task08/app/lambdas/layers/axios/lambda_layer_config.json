@@ -1,0 +1,8 @@
+{
+  "name": "axios",
+  "resource_type": "lambda_layer",
+  "runtimes": [
+    "nodejs20.x"
+  ],
+  "deployment_package": "axios_layer.zip"
+}
