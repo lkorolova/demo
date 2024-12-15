@@ -336,6 +336,12 @@ function isBookedAlready(earlyReservations, currentReservation) {
     earlyReservations.forEach((earlyReservation) => {
         const previousResStart = earlyReservation.slotTimeStart;
         const previousResEnd = earlyReservation.slotTimeEnd;
+
+        console.log('1', (curResEnd >= previousResStart && curResStart <= previousResStart));
+        console.log('2', (previousResEnd >= curResStart && previousResStart <= curResStart));
+        console.log('3', (previousResStart >= curResStart && previousResEnd <= curResEnd));
+        console.log('4', (previousResStart <= curResStart && previousResEnd >= curResEnd));
+        
         
         const isBooked =
             ((curResEnd >= previousResStart && curResStart <= previousResStart) ||
@@ -346,6 +352,9 @@ function isBookedAlready(earlyReservations, currentReservation) {
         results.push(isBooked);
     }
     );    
+    console.log('results' ,results);
+    console.log('includes', results.includes(true));
+    
 
     return results.includes(true);
 }
