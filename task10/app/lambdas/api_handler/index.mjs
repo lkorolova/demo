@@ -7,7 +7,7 @@ import {
 import {
     DynamoDBClient,
     ScanCommand,
-    // PutItemCommand,
+    GetItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import {
     GetCommand,
@@ -290,7 +290,36 @@ async function getTable(tableId) {
             }
         }
     } catch (err) {
-        console(err);
+        console.log(err);
+        throwError(err);
+    }
+}
+async function getTableByNumber(tableNumber) {
+    console.log("tableNumber", tableNumber);
+
+    try {
+        const input = {
+            TableName: tables_table,
+        }
+        const scan = new ScanCommand(input);
+
+        const response = await dynamo.send(scan);
+
+        const isTableExising = response.Items.some((item) => item.number.N == tableNumber);
+
+        if (isTableExising) {
+            return {
+                statusCode: 200,
+                body: JSON.stringify(response.Item),
+            }
+        } else {
+            return {
+                statusCode: 400,
+                body: JSON.stringify("The table does not exist"),
+            }
+        }
+    } catch (err) {
+        console.log(err);
         throwError(err);
     }
 }
@@ -355,8 +384,8 @@ async function getTableReservations(tableId, date) {
     }
 }
 
-async function doesTableExist(tableId) {
-    const result = await getTable(tableId);
+async function doesTableExist(tableNumber) {
+    const result = await getTableByNumber(tableNumber);
     if (result.statusCode === 200) {
         return true;
     } else {
@@ -378,7 +407,7 @@ async function postReservation(body) {
         } = body;
         if (tableNumber && clientName && phoneNumber && date && slotTimeStart && slotTimeEnd) {
             const doesCurrentTableExist = await doesTableExist(tableNumber);
-            console.log(doesTableExist);
+            console.log(doesCurrentTableExist);
 
             if (!doesCurrentTableExist) {
                 throw {
