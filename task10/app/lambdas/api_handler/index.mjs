@@ -333,22 +333,18 @@ function isBookedAlready(earlyReservations, currentReservation) {
 
     const curResStart = currentReservation.slotTimeStart;
     const curResEnd = currentReservation.slotTimeEnd;
+
     earlyReservations.forEach((earlyReservation) => {
         const previousResStart = earlyReservation.slotTimeStart;
         const previousResEnd = earlyReservation.slotTimeEnd;
-
-        console.log('1', (curResEnd >= previousResStart && curResStart <= previousResStart));
-        console.log('2', (previousResEnd >= curResStart && previousResStart <= curResStart));
-        console.log('3', (previousResStart >= curResStart && previousResEnd <= curResEnd));
-        console.log('4', (previousResStart <= curResStart && previousResEnd >= curResEnd));
-        
         
         const isBooked =
             ((curResEnd >= previousResStart && curResStart <= previousResStart) ||
             (previousResEnd >= curResStart && previousResStart <= curResStart) ||
             (previousResStart >= curResStart && previousResEnd <= curResEnd) ||
             (previousResStart <= curResStart && previousResEnd >= curResEnd)) &&
-            earlyReservations.tableNumber == currentReservation.tableNumber
+            (earlyReservation.tableNumber == currentReservation.tableNumber);
+    
         results.push(isBooked);
     }
     );    
