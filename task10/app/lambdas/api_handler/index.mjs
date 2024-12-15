@@ -338,8 +338,8 @@ function isBookedAlready(earlyReservations, currentReservation) {
         const previousResEnd = earlyReservation.slotTimeEnd;
         
         const isBooked =
-            (curResEnd >= previousResStart && curResStart <= previousResStart) ||
-            (previousResEnd >= curResStart && previousResStart <= curResStart) ||
+            (curResEnd > previousResStart && curResStart < previousResStart) ||
+            (previousResEnd > curResStart && previousResStart < curResStart) ||
             (previousResStart >= curResStart && previousResEnd <= curResEnd) ||
             (previousResStart <= curResStart && previousResEnd >= curResEnd)
         results.push(isBooked);
