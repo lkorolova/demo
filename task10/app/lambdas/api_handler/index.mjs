@@ -338,10 +338,11 @@ function isBookedAlready(earlyReservations, currentReservation) {
         const previousResEnd = earlyReservation.slotTimeEnd;
         
         const isBooked =
-            (curResEnd > previousResStart && curResStart < previousResStart) ||
-            (previousResEnd > curResStart && previousResStart < curResStart) ||
+            ((curResEnd >= previousResStart && curResStart <= previousResStart) ||
+            (previousResEnd >= curResStart && previousResStart <= curResStart) ||
             (previousResStart >= curResStart && previousResEnd <= curResEnd) ||
-            (previousResStart <= curResStart && previousResEnd >= curResEnd)
+            (previousResStart <= curResStart && previousResEnd >= curResEnd)) &&
+            earlyReservations.tableNumber == currentReservation.tableNumber
         results.push(isBooked);
     }
     );    
@@ -429,7 +430,7 @@ async function postReservation(body) {
                     slotTimeEnd: slotTimeEnd,
                 }
             }
-            if (isBookedAlready(existingTableReservations, input.Item)) {
+            if ( isBookedAlready(existingTableReservations, input.Item)) {
                 throw {
                     statusCode: 400,
                     body: "The table has already been booked for this time",
