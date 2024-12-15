@@ -1,18 +1,18 @@
-import { 
-    CognitoIdentityProviderClient, 
-    AdminCreateUserCommand, 
+import {
+    CognitoIdentityProviderClient,
+    AdminCreateUserCommand,
     AdminRespondToAuthChallengeCommand,
     AdminInitiateAuthCommand
 } from "@aws-sdk/client-cognito-identity-provider";
-import { 
-    DynamoDBClient, 
+import {
+    DynamoDBClient,
     ScanCommand,
     // PutItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { 
+import {
     GetCommand,
-    PutCommand, 
-    DynamoDBDocumentClient 
+    PutCommand,
+    DynamoDBDocumentClient
 } from "@aws-sdk/lib-dynamodb";
 import { v4 } from 'uuid';
 const USER_POOL_ID = process.env.cup_id;
@@ -23,7 +23,80 @@ const reservations_table = process.env.reservations_table;
 const dynamo = new DynamoDBClient({});
 const dynamoDoc = DynamoDBDocumentClient.from(dynamo);
 
-const createUser = async (body) => {
+export const handler = async (event) => {
+    const method = event.httpMethod || null;
+
+    if (method) {
+        try {
+            const path = event.resource;
+            const requestBody = JSON.parse(event.body);
+
+            if (path === "/signup" && method === "POST") {
+                console.log("signup");
+
+                return await createUser(requestBody);
+            }
+            if (path === "/signin" && method === "POST") {
+                console.log("signin");
+
+                return await loginUser(requestBody);
+            }
+            if (path === "/tables" && method === "POST") {
+                console.log("tables POST");
+
+                return await postTable(requestBody);
+            }
+            if (path === "/tables" && method === "GET") {
+                console.log("tables GET");
+
+                return await getAllTables();
+            }
+            if (path === "/tables/{tableId}" && method === "GET") {
+                console.log("tables/{tableId} GET");
+
+                return await getTable(event.pathParameters.tableId);
+            }
+            if (path === "/reservations" && method === "POST") {
+                console.log("reservations POST");
+
+                return await postReservation(requestBody);
+            }
+            if (path === "/reservations" && method === "GET") {
+                console.log("reservations GET");
+
+                return await getAllReservations();
+            }
+
+            // Default return if no method or path exists
+            return {
+                statusCode: 400,
+                body: "Bad Request",
+            }
+
+        } catch (err) {
+            console.log(err);
+
+            return {
+                statusCode: 400,
+                body: "Bad Request",
+            }
+        }
+    } else {
+        return {
+            statusCode: 400,
+            body: "Bad Request",
+        }
+    }
+}
+
+function throwError(error) {
+    throw {
+        statusCode: 400,
+        body: JSON.stringify(error),
+    }
+}
+
+async function createUser(body) {
     try {
         const { firstName, lastName, email, password } = body;
 
@@ -52,12 +125,12 @@ const createUser = async (body) => {
         const command = new AdminCreateUserCommand(createUserInput);
 
         await cognito.send(command);
-        
+
         const initAuthInput = {
             UserPoolId: USER_POOL_ID,
-            ClientId: CLIENT_ID, 
+            ClientId: CLIENT_ID,
             AuthFlow: "ADMIN_NO_SRP_AUTH",
-            AuthParameters: { 
+            AuthParameters: {
                 USERNAME: email,
                 PASSWORD: password,
             }
@@ -87,22 +160,22 @@ const createUser = async (body) => {
     }
 }
 
-const loginUser = async (body) => {    
+async function loginUser(body) {
     try {
-        const {email, password} = body;   
-        
+        const { email, password } = body;
+
         const initAuthInput = {
             UserPoolId: USER_POOL_ID,
-            ClientId: CLIENT_ID, 
+            ClientId: CLIENT_ID,
             AuthFlow: "ADMIN_NO_SRP_AUTH",
-            AuthParameters: { 
+            AuthParameters: {
                 USERNAME: email,
                 PASSWORD: password,
             }
         }
         const initAuthCommand = new AdminInitiateAuthCommand(initAuthInput);
         const response = await cognito.send(initAuthCommand);
-                
+
         return {
             statusCode: 200,
             body: JSON.stringify({
@@ -115,7 +188,7 @@ const loginUser = async (body) => {
     }
 }
 
-const getAllTables = async () => {
+async function getAllTables() {
     try {
         const input = {
             TableName: tables_table,
@@ -138,7 +211,9 @@ const getAllTables = async () => {
 
         return {
             statusCode: 200,
-            body: JSON.stringify(tables),
+            body: JSON.stringify({
+                tables: tables,
+            }),
         }
     } catch (err) {
         console.log(err);
@@ -146,12 +221,12 @@ const getAllTables = async () => {
     }
 }
 
-const postTable = async (body) => {
+async function postTable(body) {
     console.log(body);
-    
+
     try {
-        const { number, places, isVip, minOrder, id} = body;
-        if(number && places && typeof isVip && id) {            
+        const { number, places, isVip, minOrder, id } = body;
+        if (number && places && typeof isVip && id) {
             const input = {
                 TableName: tables_table,
                 Item: {
@@ -162,27 +237,27 @@ const postTable = async (body) => {
                     minOrder: minOrder || null,
                 }
             }
-            
+
             console.log("input", input);
-            
-            
+
+
             const put = new PutCommand(input);
             console.log("put", put);
-            
+
             await dynamoDoc.send(put);
-            
+
             return {
                 statusCode: 200,
                 body: JSON.stringify({
                     id: id
                 }),
-    
+
             }
         } else {
             throw {
                 statusCode: 400,
                 body: JSON.stringify("Bad request"),
-            }        
+            }
         }
     } catch (err) {
         console.log(err);
@@ -190,22 +265,29 @@ const postTable = async (body) => {
     }
 }
 
-const getTable = async (tableId) => {    
+async function getTable(tableId) {
     console.log("tableId", tableId);
-    
+
     try {
         const input = {
             TableName: tables_table,
             Key: {
                 id: +tableId,
             },
-        } 
+        }
         const getCommand = new GetCommand(input);
         const response = await dynamoDoc.send(getCommand);
 
-        return {
-            statusCode: 200,
-            body: JSON.stringify(response.Item),
+        if (response.Item) {
+            return {
+                statusCode: 200,
+                body: JSON.stringify(response.Item),
+            }
+        } else {
+            return {
+                statusCode: 400,
+                body: JSON.stringify("The table does not exist"),
+            }
         }
     } catch (err) {
         console(err);
@@ -213,35 +295,121 @@ const getTable = async (tableId) => {
     }
 }
 
-const postReservation = async (body) => {
+function isBookedAlready(earlyReservations, currentReservation) {
+
+    console.log('early', earlyReservations);
+    console.log('cur', currentReservation);
+    
+    const results = [];
+
+    const curResStart = currentReservation.slotTimeStart;
+    const curResEnd = currentReservation.slotTimeEnd;
+    earlyReservations.forEach((earlyReservation) => {
+        const previousResStart = earlyReservation.slotTimeStart;
+        const previousResEnd = earlyReservation.slotTimeEnd;
+        
+        const isBooked =
+            (curResEnd >= previousResStart && curResStart <= previousResStart) ||
+            (previousResEnd >= curResStart && previousResStart <= curResStart) ||
+            (previousResStart >= curResStart && previousResEnd <= curResEnd) ||
+            (previousResStart <= curResStart && previousResEnd >= curResEnd)
+        results.push(isBooked);
+    }
+    );    
+
+    return results.includes(true);
+}
+
+async function getTableReservations(tableId, date) {
+    console.log("tableId", tableId);
+
+    try {
+        const input = {
+            TableName: reservations_table,
+            Key: {
+                tableNumber: +tableId,
+                date: date,
+            },
+        }
+        const scan = new ScanCommand(input);
+
+        const response = await dynamo.send(scan);
+        const reservations = [];
+
+        response.Items.forEach((reservation) => {
+            const reservationParams = {
+                tableNumber: +reservation.tableNumber.N,
+                clientName: reservation.clientName.S,
+                phoneNumber: reservation.phoneNumber.S,
+                date: reservation.date.S,
+                slotTimeStart: reservation.slotTimeStart.S,
+                slotTimeEnd: reservation.slotTimeEnd.S,
+            }
+            reservations.push(reservationParams);
+        })
+
+        return reservations;
+    } catch (err) {
+        console(err);
+        throwError(err);
+    }
+}
+
+async function doesTableExist(tableId) {
+    const result = await getTable(tableId);
+    if (result.statusCode === 200) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+async function postReservation(body) {
     try {
         console.log("body", body);
-        
-        const { 
+
+        const {
             tableNumber,
             clientName,
             phoneNumber,
             date,
             slotTimeStart,
             slotTimeEnd
-        } =  body;
+        } = body;
         if (tableNumber && clientName && phoneNumber && date && slotTimeStart && slotTimeEnd) {
+            const doesCurrentTableExist = await doesTableExist(tableNumber);
+            console.log(doesTableExist);
+
+            if (!doesCurrentTableExist) {
+                throw {
+                    statusCode: 400,
+                    body: JSON.stringify("The table does not exist"),
+                }
+            }
+            const existingTableReservations = await getTableReservations(tableNumber, date);
             const id = v4();
             const input = {
                 TableName: reservations_table,
                 Item: {
-                    reservationId: id,
+                    id: id,
                     tableNumber: tableNumber,
                     clientName: clientName,
                     phoneNumber: phoneNumber,
                     date: date,
                     slotTimeStart: slotTimeStart,
                     slotTimeEnd: slotTimeEnd,
-                }  
+                }
             }
+            if (isBookedAlready(existingTableReservations, input.Item)) {
+                throw {
+                    statusCode: 400,
+                    body: "The table has already been booked for this time",
+                }
+            }
+
             const put = new PutCommand(input);
             await dynamoDoc.send(put);
-            
+
             return {
                 statusCode: 200,
                 body: JSON.stringify({
@@ -252,7 +420,7 @@ const postReservation = async (body) => {
             throw {
                 statusCode: 400,
                 body: JSON.stringify("Bad request"),
-            }        
+            }
         }
     } catch (err) {
         console.log(err);
@@ -260,7 +428,7 @@ const postReservation = async (body) => {
     }
 }
 
-const getAllReservations = async () => {
+async function getAllReservations() {
     try {
         const input = {
             TableName: reservations_table,
@@ -268,11 +436,11 @@ const getAllReservations = async () => {
         const scan = new ScanCommand(input);
 
         const response = await dynamo.send(scan);
-        const reservations = [];
+        const reservationsObj = { reservations: [], };
 
         response.Items.forEach((reservation) => {
             const tableParams = {
-                reservationId: reservation.reservationId.S,
+                reservationId: reservation.id.S,
                 tableNumber: +reservation.tableNumber.N,
                 clientName: reservation.clientName.S,
                 phoneNumber: reservation.phoneNumber.S,
@@ -280,12 +448,12 @@ const getAllReservations = async () => {
                 slotTimeStart: reservation.slotTimeStart.S,
                 slotTimeEnd: reservation.slotTimeEnd.S,
             }
-            reservations.push(tableParams);
+            reservationsObj.reservations.push(tableParams);
         })
 
         return {
             statusCode: 200,
-            body: JSON.stringify(reservations),
+            body: JSON.stringify(reservationsObj),
         }
     } catch (err) {
         console.log(err);
@@ -293,76 +461,3 @@ const getAllReservations = async () => {
     }
 }
 
-
-export const handler = async (event) => {
-    const method = event.httpMethod || null;
-
-    if (method) {
-        try {
-            const path = event.resource;
-            const requestBody = JSON.parse(event.body);            
-
-            if (path === "/signup" && method === "POST") {
-                console.log("signup");
-                
-                return await createUser(requestBody);
-            }
-            if (path === "/signin" && method === "POST") {
-                console.log("signin");
-
-                return await loginUser(requestBody);
-            }
-            if (path === "/tables" && method === "POST") {
-                console.log("tables POST");
-                
-                return await postTable(requestBody);
-            }
-            if (path === "/tables" && method === "GET") {
-                console.log("tables GET");
-
-                return await getAllTables();
-            }
-            if (path === "/tables/{tableId}" && method === "GET") {
-                console.log("tables/{tableId} GET");
-                
-                return await getTable(event.pathParameters.tableId);
-            }
-            if (path === "/reservations" && method === "POST") {
-                console.log("reservations POST");
-
-                return await postReservation(requestBody);
-            }
-            if (path === "/reservations" && method === "GET") {
-                console.log("reservations GET");
-
-                return await getAllReservations();
-            }
-
-            // Default return if no method or path exists
-            return {
-                statusCode: 400,
-                body: "Bad Request",
-            }
-
-        } catch (err) {
-            console.log(err);
-            
-            return {
-                statusCode: 400,
-                body: "Bad Request",
-            }
-        }
-    } else {
-        return {
-            statusCode: 400,
-            body: "Bad Request",
-        }
-    }
-}
-
-function throwError (error) {
-    throw {
-        statusCode: 400,
-        body: JSON.stringify(error),
-    }
-}
